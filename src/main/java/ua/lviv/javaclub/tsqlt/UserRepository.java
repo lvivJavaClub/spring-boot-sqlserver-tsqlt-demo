@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.query.Procedure;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    @Procedure(name = "CreateUser")
+    @Procedure(name = "dbo.CreateUser")
     void createUser(String name, String email);
 }
