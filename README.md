@@ -21,19 +21,18 @@ spring-boot-sqlserver-tsqlt-demo/
 │   │   ├── resources/
 │   │   │   ├── application.yml
 │   │   │   ├── schema.sql
-│   │   │   ├── data.sql
-│── src/
+│   │   │   ├── create-user.http
+│   │   │   ├── get-users.http
 │   ├── test/
-│   │   ├── java/ua/lviv/javaclub/tsqlt/
-│   │   │   ├── UserRepositoryTest.java
-│   │   │   ├── UserControllerTest.java
-│── sql/
-│   ├── setup/
-│   │   ├── install_tSQLt.sql
-│   │   ├── create_procedure.sql
-│   │   ├── create_tests.sql
-│── docker/
-│   ├── docker-compose.yml
+│   │   ├── resources/
+│   │   │   ├── FacadeDacpacs/
+│   │   │   │   ├── tSQLtFacade.*.dacpac (various versions)
+│   │   │   ├── PrepareServer.sql
+│   │   │   ├── my_tests.sql
+│   │   │   ├── run.sql
+│   │   │   ├── tSQLt.class.sql
+│   │   │   ├── tSQLt.print.sql
+│── docker-compose.yml
 │── build.gradle
 │── README.md
 ```
@@ -54,16 +53,16 @@ This starts SQL Server on `localhost:1433`.
 ```yaml
 spring:
   datasource:
-    url: jdbc:sqlserver://localhost:1433;databaseName=TEST;encrypt=false;trustServerCertificate=true
-    username: JAVACLUB
+    url: jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=false;trustServerCertificate=true
+    username: sa
     password: YourStrong!Passw0rd
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.SQLServerDialect
+    hibernate:
+      ddl-auto: none
 
 server:
   port: 8080
@@ -74,26 +73,49 @@ server:
 ./gradlew bootRun
 ```
 
-## 🛠 Stored Procedure (`create_procedure.sql`)
+## 🛠 Stored Procedure (in `schema.sql`)
 ```sql
-USE mydb;
-GO
-
-CREATE PROCEDURE CreateUser
-    @Name NVARCHAR(255),
-    @Email NVARCHAR(255)
+CREATE OR ALTER PROCEDURE dbo.CreateUser @Name NVARCHAR(255),
+                                         @Email NVARCHAR(255)
 AS
 BEGIN
-    INSERT INTO Users (name, email) VALUES (@Name, @Email);
+    DECLARE @isEmailExist BIT,
+        @Score INT;
+
+    SET @isEmailExist = dbo.isEmailExist(@Email);
+
+    IF (@isEmailExist = 0)
+        BEGIN
+            EXEC dbo.getScore @Email, @res = @Score OUTPUT
+
+            INSERT INTO dbo.Users (name, email, score)
+            VALUES (@Name, @Email, @Score);
+        END
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.isEmailExist(
+    @Email NVARCHAR(255)
+) RETURNS BIT
+AS
+BEGIN
+    RETURN IIF(@Email = 'email100500', 1, 0);
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.getScore @Email NVARCHAR(255), @res INT OUTPUT
+AS
+BEGIN
+    set @res = 100
 END;
 GO
 ```
 
 ## 🚀 REST API Endpoints
-| Method | Endpoint | Description |
-|--------|---------|-------------|
-| `GET` | `/users` | Fetch all users |
-| `POST` | `/users` | Create a new user via stored procedure |
+| Method  | Endpoint   | Description                            |
+|---------|------------|----------------------------------------|
+| `GET`   | `/users`   | Fetch all users                        |
+| `POST`  | `/users`   | Create a new user via stored procedure |
 
 ### Example Request (POST)
 ```json
@@ -103,27 +125,19 @@ GO
 }
 ```
 
-## 🥪 tSQLt Test for Stored Procedure (`create_tests.sql`)
-```sql
-USE mydb;
-GO
-
-EXEC tSQLt.NewTestClass 'TestUser';
-GO
-
-CREATE PROCEDURE TestUser.[test CreateUser should insert a new user]
-AS
-BEGIN
-EXEC tSQLt.FakeTable 'dbo.Users';
-EXEC CreateUser @Name = 'Test User', @Email = 'test@example.com';
-EXEC tSQLt.AssertEqualsTable 'dbo.Users', (SELECT name, email FROM dbo.Users);
-END;
-GO
-```
 
 ### Run tSQLt Tests
 ```sql
-EXEC tSQLt.Run 'TestUser.[test CreateUser should insert a new user]';
+-- Run all tests across all test classes
+EXEC tSQLt.RunAll;
+GO
+
+-- Run all tests in TestUser class
+EXEC tSQLt.Run 'TestUser';
+GO
+
+-- Run a specific test
+EXEC tSQLt.Run 'TestUser.[test CreateUser inserts row with FakeTable]';
 GO
 ```
 
