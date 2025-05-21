@@ -1,6 +1,20 @@
 tSQlt.NewTestClass 'TestUser'
 GO
 
+CREATE PROCEDURE TestUser.[TestClassSetup]
+AS
+BEGIN
+    PRINT 'TestUser TestClassSetup.....'
+END;
+GO;
+
+CREATE PROCEDURE [TestUser].[SetUp]
+AS
+BEGIN
+    PRINT 'TestUser Setup.....'
+END;
+GO;
+
 -- ====================================================================================================================
 -- Create first test (FakeTable demo)
 CREATE PROCEDURE [TestUser].[test CreateUser inserts row with FakeTable]
@@ -52,7 +66,7 @@ BEGIN
     EXEC dbo.CreateUser @Name = 'Test User', @Email = 'test@example.com';
 
     DECLARE @isEmailExist INT;
-    SET @isEmailExist = dbo.isEmailExist( 'test@example.com');
+    SET @isEmailExist = dbo.isEmailExist('test@example.com');
 
     -- Assert: Compare Users table to expected
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @isEmailExist;
@@ -81,6 +95,20 @@ GO
 -- Create old test (Skip demo)
 tSQlt.NewTestClass 'OldTestUser'
 GO
+
+CREATE PROCEDURE OldTestUser.[TestClassSetup]
+AS
+BEGIN
+    PRINT 'OldTestUser TestClassSetup.....'
+END;
+GO;
+
+CREATE PROCEDURE [OldTestUser].[SetUp]
+AS
+BEGIN
+    PRINT 'OldTestUser Setup.....'
+END;
+GO;
 
 --[@tSQLt:SkipTest]('Some old test')
 CREATE PROCEDURE [OldTestUser].[test CreateUser inserts row old]
@@ -189,7 +217,7 @@ GO;
 
 -- ====================================================================================================================
 CREATE OR ALTER PROCEDURE TestUser.CreateUser @Name NVARCHAR(255),
-                                         @Email NVARCHAR(255)
+                                              @Email NVARCHAR(255)
 AS
 BEGIN
     INSERT INTO dbo.Users (name, email)
@@ -222,3 +250,14 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable @Expected = '#Expected', @Actual = 'dbo.Users';
 END;
 GO;
+
+-- ====================================================================================================================
+--[@tSQLt:print](100500)
+CREATE PROCEDURE [TestUser].[test Annotation]
+AS
+BEGIN
+    print 'Annotation ...'
+END;
+GO;
+
+
